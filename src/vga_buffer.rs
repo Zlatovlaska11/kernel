@@ -22,7 +22,7 @@ pub fn _print(args: fmt::Arguments) {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         collumn_pos: 0,
-        color_code: color_byte::new(Color::Yellow, Color::Black),
+        color_code: ColorByte::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -51,11 +51,11 @@ pub enum Color {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
-struct color_byte(u8);
+struct ColorByte(u8);
 
-impl color_byte {
-    pub fn new(foreground: Color, background: Color) -> color_byte {
-        color_byte((background as u8) << 4 | (foreground as u8))
+impl ColorByte {
+    pub fn new(foreground: Color, background: Color) -> ColorByte {
+        ColorByte((background as u8) << 4 | (foreground as u8))
     }
 }
 #[allow(dead_code)]
@@ -63,7 +63,7 @@ impl color_byte {
 #[repr(C)]
 struct ScreenChar {
     ascii_character: u8,
-    color_code: color_byte,
+    color_code: ColorByte,
 }
 
 const BUFFER_HEIGHT: usize = 25;
@@ -76,7 +76,7 @@ struct Buffer {
 }
 pub struct Writer {
     collumn_pos: usize,
-    color_code: color_byte,
+    color_code: ColorByte,
     buffer: &'static mut Buffer,
 }
 
@@ -147,7 +147,7 @@ impl fmt::Write for Writer {
 pub fn print_something(text: &str) {
     let mut writer = Writer {
         collumn_pos: 0,
-        color_code: color_byte::new(Color::Yellow, Color::Black),
+        color_code: ColorByte::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
 
