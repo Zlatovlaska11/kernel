@@ -1,10 +1,8 @@
-use crate::{gdt, print, println};
+use crate::{gdt, print, println, vga_buffer};
 use lazy_static::lazy_static;
+use pc_keyboard::KeyCode;
 use pic8259::ChainedPics;
-use x86_64::{
-    instructions::port,
-    structures::idt::{InterruptDescriptorTable, InterruptStackFrame},
-};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -65,6 +63,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
+                DecodedKey::Unicode('\u{0008}') => vga_buffer::WRITER.lock().write_byte(0x0E),
                 DecodedKey::Unicode(character) => print!("{}", character),
                 DecodedKey::RawKey(key) => print!("{:?}", key),
             }

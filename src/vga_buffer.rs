@@ -86,6 +86,7 @@ pub struct Writer {
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
+            0x0E => self.backspace(),
             b'\n' => self.new_line(),
             byte => {
                 if self.collumn_pos >= BUFFER_WIDTH {
@@ -136,11 +137,25 @@ impl Writer {
             }
         }
     }
+
+    fn backspace(&mut self) {
+        if self.collumn_pos <= BUFFER_WIDTH{
+            let row = BUFFER_HEIGHT - 1;
+            let col = self.collumn_pos;
+            let blank = ScreenChar {
+                ascii_character: b' ',
+                color_code: ColorByte::new(Color::Red, Color::Black),
+            };
+            self.buffer.chars[row][col - 1].write(blank);
+            self.collumn_pos -= 1;
+        }
+    }
 }
 
-use core::fmt;
-
-use crate::interuptions;
+use core::{
+    fmt::{self, Write},
+    ops::Sub,
+};
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {

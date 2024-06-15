@@ -9,7 +9,7 @@ pub mod serial;
 
 use core::panic::PanicInfo;
 
-use kernel::{gdt, print, println};
+use kernel::{print, println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -17,7 +17,19 @@ pub extern "C" fn _start() -> ! {
 
     kernel::init();
 
-    print!("-");
+    let logo = r"
+ _______       _             _             _____ _____ 
+|___  / |     | |           | |           |  _  /  ___|
+   / /| | __ _| |_ _____   _| | __ _ ___  | | | \ `--. 
+  / / | |/ _` | __/ _ \ \ / / |/ _` / __| | | | |`--. \
+./ /__| | (_| | || (_) \ V /| | (_| \__ \ \ \_/ /\__/ /
+\_____/_|\__,_|\__\___/ \_/ |_|\__,_|___/  \___/\____/ 
+        
+";
+
+    print!("{}", logo);
+    
+
     kernel::hlt_loop()
 }
 
