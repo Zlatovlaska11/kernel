@@ -1,6 +1,7 @@
-use volatile::Volatile;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use volatile::Volatile;
+use x86_64::instructions::interrupts;
 
 #[macro_export]
 macro_rules! print {
@@ -16,7 +17,9 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    })
 }
 
 lazy_static! {
@@ -136,6 +139,8 @@ impl Writer {
 }
 
 use core::fmt;
+
+use crate::interuptions;
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {

@@ -9,7 +9,7 @@ pub mod serial;
 
 use core::panic::PanicInfo;
 
-use kernel::{gdt, println};
+use kernel::{gdt, print, println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -17,7 +17,8 @@ pub extern "C" fn _start() -> ! {
 
     kernel::init();
 
-    loop {}
+    print!("-");
+    kernel::hlt_loop()
 }
 
 /// This function is called on panic.
@@ -25,7 +26,7 @@ pub extern "C" fn _start() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    loop {}
+    kernel::hlt_loop();
 }
 
 #[cfg(test)]
