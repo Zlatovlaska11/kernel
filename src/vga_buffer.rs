@@ -139,7 +139,7 @@ impl Writer {
     }
 
     fn backspace(&mut self) {
-        if self.collumn_pos <= BUFFER_WIDTH{
+        if self.collumn_pos < BUFFER_WIDTH && self.collumn_pos > 0 {
             let row = BUFFER_HEIGHT - 1;
             let col = self.collumn_pos;
             let blank = ScreenChar {
@@ -152,10 +152,7 @@ impl Writer {
     }
 }
 
-use core::{
-    fmt::{self, Write},
-    ops::Sub,
-};
+use core::fmt::{self};
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {

@@ -1,8 +1,10 @@
-use crate::{gdt, print, println, vga_buffer};
+use crate::cmd_handler::handle_cmd;
+use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
+use alloc::string::String;
 use lazy_static::lazy_static;
-use pc_keyboard::KeyCode;
 use pic8259::ChainedPics;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use spin::Mutex;
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -24,6 +26,10 @@ impl InteruptIndex {
     }
 }
 
+lazy_static! {
+    static ref cmd: Mutex<String> = Mutex::new(String::new());
+}
+
 pub static PIC: spin::Mutex<ChainedPics> =
     spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
@@ -32,6 +38,7 @@ lazy_static! {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         unsafe {
+            idt.page_fault.set_handler_fn(page_interupt_handler);
             idt[InteruptIndex::TIMER.as_usize()].set_handler_fn(timer_interrupt_handler);
             idt[InteruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
             idt.double_fault
@@ -40,6 +47,19 @@ lazy_static! {
         }
         idt
     };
+}
+
+extern "x86-interrupt" fn page_interupt_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
@@ -63,9 +83,26 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode('\u{0008}') => vga_buffer::WRITER.lock().write_byte(0x0E),
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
+                DecodedKey::Unicode('\u{0008}') => {
+                    vga_buffer::WRITER.lock().write_byte(0x0E)
+                }
+                DecodedKey::Unicode(character) => match character {
+                    'a'..='z' => {
+                        cmd.lock().push(character);
+                        print!("{}", character)
+                    }
+                    ' ' => {
+                        cmd.lock().push(character);
+                        print!(" ")
+                    }
+                    '\n' => {
+                        crate::cmd_handler::handle_cmd(&mut cmd.lock());
+                        print!("\n");
+                        cmd.lock().clear();
+                    }
+                    default => (),
+                },
+                DecodedKey::RawKey(key) => (),
             }
         }
     }
@@ -77,7 +114,6 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-
     unsafe {
         PIC.lock()
             .notify_end_of_interrupt(InteruptIndex::TIMER.as_u8());
