@@ -84,7 +84,8 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode('\u{0008}') => {
-                    vga_buffer::WRITER.lock().write_byte(0x0E)
+                    vga_buffer::WRITER.lock().write_byte(0x0E);
+                    cmd.lock().pop();
                 }
                 DecodedKey::Unicode(character) => match character {
                     'a'..='z' => {

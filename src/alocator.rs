@@ -1,9 +1,40 @@
+use bump::BumpAllocator;
+use fixed_size_blocks::FixedSizeBlockAlocator;
+use linked_list::LinkedListAllocator;
 use linked_list_allocator::LockedHeap;
 
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static ALLOCATOR: Locked<FixedSizeBlockAlocator> = Locked::new(FixedSizeBlockAlocator::new());
 
+pub mod bump;
+pub mod linked_list;
+pub mod fixed_size_blocks;
 
+pub struct Locked<A> {
+    inner: spin::Mutex<A>,
+}
+
+impl<A> Locked<A> {
+    pub const fn new(inner: A) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<A> {
+        self.inner.lock()
+    }
+}
+
+fn align_up(addr: usize, align: usize) -> usize {
+    let reminder = addr % align;
+    if reminder == 0 {
+        addr
+    }
+    else {
+        addr - reminder + align
+    }
+}
 
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
@@ -47,12 +78,9 @@ pub fn init_heap(
             .allocate_frame()
             .ok_or(MapToError::FrameAllocationFailed)?;
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-        unsafe {
-            mapper.map_to(page, frame, flags, frame_allocator)?.flush()
-        };
+        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
 
         unsafe {
-
             ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
         }
     }

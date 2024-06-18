@@ -1,8 +1,7 @@
-use core::default;
 
 use alloc::{string::{String, ToString}, vec::Vec};
 
-use crate::{print, println, vga_buffer};
+use crate::{print, println, serial_print, serial_println, vga_buffer::{self, WRITER}};
 
 
 pub fn handle_cmd(command: &mut String){
@@ -20,7 +19,9 @@ pub fn handle_cmd(command: &mut String){
     match comm.as_str() {
         "help" => print!("\nthis is help"),
         "sayhi" => say_hi(&rest), 
-        default => ()
+        "clear" => WRITER.lock().clear_screen(),
+        "test" => WRITER.lock().test(),
+        _default => print!("\ncommand not found")
         
     }
 }
@@ -31,7 +32,11 @@ fn say_hi(command: &String){
 
         print!("\nwrong args")
     }
+    WRITER.lock().change_color(vga_buffer::Color::Yellow);
 
-    print!("\nZlatovlas (god): {}", command);
+    print!("\nZlatovlas (god): ");
 
+    WRITER.lock().change_color(vga_buffer::Color::White);
+
+    print!("{}", command);
 }

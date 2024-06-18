@@ -49,7 +49,6 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // alloc some kernel heap size defined in the alocator.rs
     kernel::alocator::init_heap(&mut mapper, &mut frame_allocator).expect("allocation failed");
 
-
     kernel::hlt_loop()
 }
 

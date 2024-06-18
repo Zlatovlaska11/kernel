@@ -25,7 +25,7 @@ pub fn _print(args: fmt::Arguments) {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         collumn_pos: 0,
-        color_code: ColorByte::new(Color::Yellow, Color::Black),
+        color_code: ColorByte::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -106,6 +106,14 @@ impl Writer {
         }
     }
 
+    pub fn change_color(&mut self, color: Color) {
+        self.color_code = ColorByte::new(color, Color::Black);
+    }
+
+    pub fn get_debug_info(&mut self) -> usize {
+        self.collumn_pos.clone()
+    }
+
     fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
@@ -125,6 +133,15 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
         }
+    }
+
+    pub fn test(&mut self){
+
+        let blank = ScreenChar {
+            ascii_character: b'b',
+            color_code: self.color_code,
+        };
+        self.buffer.chars[1][0].write(blank)
     }
 
     pub fn write_string(&mut self, s: &str) {
@@ -148,6 +165,13 @@ impl Writer {
             };
             self.buffer.chars[row][col - 1].write(blank);
             self.collumn_pos -= 1;
+        }
+    }
+
+    pub fn clear_screen(&mut self) {
+        for y in 0..BUFFER_HEIGHT {
+            self.clear_row(y);
+            self.collumn_pos = 0
         }
     }
 }
