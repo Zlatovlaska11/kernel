@@ -9,13 +9,13 @@
 use core::panic::PanicInfo;
 extern crate alloc;
 
+pub mod alocator;
+pub mod cmd_handler;
 pub mod gdt;
 pub mod interuptions;
 pub mod memory;
 pub mod serial;
 pub mod vga_buffer;
-pub mod alocator;
-pub mod cmd_handler;
 
 pub fn init() {
     gdt::init();
