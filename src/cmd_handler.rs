@@ -3,7 +3,6 @@ use alloc::{string::{String, ToString}, vec::Vec};
 
 use crate::{print, println, serial_print, serial_println, vga_buffer::{self, WRITER}};
 
-
 pub fn handle_cmd(command: &mut String){
 
     let comm: String;
@@ -36,7 +35,7 @@ fn say_hi(command: &String){
 
     print!("\nZlatovlas (god): ");
 
-    WRITER.lock().change_color(vga_buffer::Color::White);
+    WRITER.lock().change_color(vga_buffer::Color::Pink);
 
     print!("{}", command);
 }

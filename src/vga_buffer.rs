@@ -25,7 +25,8 @@ pub fn _print(args: fmt::Arguments) {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         collumn_pos: 0,
-        color_code: ColorByte::new(Color::White, Color::Black),
+        row_pos: 0,
+        color_code: ColorByte::new(Color::Pink, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -79,6 +80,7 @@ struct Buffer {
 }
 pub struct Writer {
     collumn_pos: usize,
+    row_pos: usize,
     color_code: ColorByte,
     buffer: &'static mut Buffer,
 }
@@ -93,7 +95,7 @@ impl Writer {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
+                let row = self.row_pos;
                 let col = self.collumn_pos;
 
                 let color_code = self.color_code;
@@ -115,13 +117,7 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
-            }
-        }
-        self.clear_row(BUFFER_HEIGHT - 1);
+        self.row_pos += 1;
         self.collumn_pos = 0;
     }
 
@@ -135,8 +131,7 @@ impl Writer {
         }
     }
 
-    pub fn test(&mut self){
-
+    pub fn test(&mut self) {
         let blank = ScreenChar {
             ascii_character: b'b',
             color_code: self.color_code,
@@ -157,7 +152,7 @@ impl Writer {
 
     fn backspace(&mut self) {
         if self.collumn_pos < BUFFER_WIDTH && self.collumn_pos > 0 {
-            let row = BUFFER_HEIGHT - 1;
+            let row = self.row_pos;
             let col = self.collumn_pos;
             let blank = ScreenChar {
                 ascii_character: b' ',
@@ -171,7 +166,8 @@ impl Writer {
     pub fn clear_screen(&mut self) {
         for y in 0..BUFFER_HEIGHT {
             self.clear_row(y);
-            self.collumn_pos = 0
+            self.collumn_pos = 0;
+            self.row_pos = 0
         }
     }
 }
@@ -183,14 +179,4 @@ impl fmt::Write for Writer {
         self.write_string(s);
         Ok(())
     }
-}
-
-pub fn print_something(text: &str) {
-    let mut writer = Writer {
-        collumn_pos: 0,
-        color_code: ColorByte::new(Color::Yellow, Color::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
-
-    writer.write_string(text);
 }
