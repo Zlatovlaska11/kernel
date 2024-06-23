@@ -1,10 +1,20 @@
+use core::{borrow::BorrowMut, default, ops::DerefMut};
+
+#[warn(dead_code)]
 use crate::cmd_handler::handle_cmd;
 use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
-use alloc::string::String;
+use alloc::{
+    fmt, str,
+    string::{String, ToString},
+};
 use lazy_static::lazy_static;
+use pc_keyboard::KeyCode;
 use pic8259::ChainedPics;
 use spin::Mutex;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::{
+    registers::control,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -25,9 +35,40 @@ impl InteruptIndex {
         usize::from(self.as_u8())
     }
 }
+const PROMPT: &str = " -> ";
+
+#[derive(Debug)]
+enum Prefix {
+    ctrl,
+    caps_lock,
+    None,
+}
+
+impl Prefix {
+    pub fn new() -> Self {
+        Prefix::None
+    }
+    pub fn from(keycode: KeyCode) -> Self {
+        match keycode {
+            KeyCode::LControl => Prefix::ctrl,
+            KeyCode::RControl => Prefix::ctrl,
+            KeyCode::CapsLock => Prefix::caps_lock,
+            _default => Prefix::None,
+        }
+    }
+}
+
+impl fmt::Display for Prefix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+        // or, alternatively:
+        // fmt::Debug::fmt(self, f)
+    }
+}
 
 lazy_static! {
     static ref cmd: Mutex<String> = Mutex::new(String::new());
+    static ref prefix: Mutex<String> = Mutex::new(String::new());
 }
 
 pub static PIC: spin::Mutex<ChainedPics> =
@@ -89,21 +130,35 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                 }
                 DecodedKey::Unicode(character) => match character {
                     'a'..='z' => {
-                        cmd.lock().push(character);
-                        print!("{}", character)
+                        if prefix.lock().as_str() == "None" || prefix.lock().is_empty() {
+                            cmd.lock().push(character);
+                            print!("{}", character)
+                        } else {
+                            cmd_handler::handle_prefix_action(character.to_string().as_str());
+                            prefix.lock().clear();
+                        }
                     }
                     ' ' => {
                         cmd.lock().push(character);
                         print!(" ")
                     }
                     '\n' => {
-                        crate::cmd_handler::handle_cmd(&mut cmd.lock());
+                        if !cmd.lock().is_empty() {
+                            crate::cmd_handler::handle_cmd(&mut cmd.lock());
+                        }
                         print!("\n");
+                        print!("{}", PROMPT);
                         cmd.lock().clear();
                     }
-                    default => (),
+                    '\u{27}' => {
+                        prefix.lock().clear();
+                    }
+                    _default => (),
                 },
-                DecodedKey::RawKey(key) => (),
+                DecodedKey::RawKey(key) => {
+                    let prefx = Prefix::from(key);
+                    prefix.lock().push_str(&prefx.to_string());
+                }
             }
         }
     }
