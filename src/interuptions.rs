@@ -35,12 +35,12 @@ impl InteruptIndex {
         usize::from(self.as_u8())
     }
 }
-const PROMPT: &str = " -> ";
+pub const PROMPT: &str = " -> ";
 
 #[derive(Debug)]
 enum Prefix {
-    ctrl,
-    caps_lock,
+    Ctrl,
+    CapsLock,
     None,
 }
 
@@ -50,9 +50,9 @@ impl Prefix {
     }
     pub fn from(keycode: KeyCode) -> Self {
         match keycode {
-            KeyCode::LControl => Prefix::ctrl,
-            KeyCode::RControl => Prefix::ctrl,
-            KeyCode::CapsLock => Prefix::caps_lock,
+            KeyCode::LControl => Prefix::Ctrl,
+            KeyCode::RControl => Prefix::Ctrl,
+            KeyCode::CapsLock => Prefix::CapsLock,
             _default => Prefix::None,
         }
     }
@@ -138,6 +138,15 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                             prefix.lock().clear();
                         }
                     }
+                    '1'..'9' => {
+                        if prefix.lock().as_str() == "None" || prefix.lock().is_empty() {
+                            cmd.lock().push(character);
+                            print!("{}", character)
+                        } else {
+                            cmd_handler::handle_prefix_action(character.to_string().as_str());
+                            prefix.lock().clear();
+                        }
+                    }
                     ' ' => {
                         cmd.lock().push(character);
                         print!(" ")
@@ -149,11 +158,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                         print!("\n");
                         print!("{}", PROMPT);
                         cmd.lock().clear();
+                        prefix.lock().clear();
                     }
                     '\u{27}' => {
                         prefix.lock().clear();
                     }
-                    _default => (),
+                    default => print!("{}", default),
                 },
                 DecodedKey::RawKey(key) => {
                     let prefx = Prefix::from(key);

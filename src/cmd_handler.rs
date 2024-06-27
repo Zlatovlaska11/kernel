@@ -4,8 +4,7 @@ use alloc::{
 };
 
 use crate::{
-    print, println, serial_print, serial_println,
-    vga_buffer::{self, WRITER},
+    filesystem::{self, file_tree::{fs_system, insert_content, list_files, File, FileTree}}, print, println, serial_print, serial_println, vga_buffer::{self, WRITER}
 };
 
 pub fn handle_cmd(command: &mut String) {
@@ -22,7 +21,8 @@ pub fn handle_cmd(command: &mut String) {
         "help" => print!("\nthis is help"),
         "sayhi" => say_hi(&rest),
         "clear" => WRITER.lock().clear_screen(),
-        "test" => WRITER.lock().test(),
+        "touch" => make_file(rest),
+        "ls" => list_files(),
         _default => print!("\ncommand not found"),
     }
 }
@@ -46,3 +46,10 @@ fn say_hi(command: &String) {
 
     print!("{}", command);
 }
+
+fn make_file(params: String) {
+
+    insert_content(File::new(params, String::new()));
+}
+
+

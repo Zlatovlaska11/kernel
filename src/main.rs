@@ -11,6 +11,7 @@ use core::panic::PanicInfo;
 
 use bootloader::{entry_point, BootInfo};
 use kernel::{
+    interuptions,
     memory::{self, BootInfoFrameAllocator},
     print, println,
 };
@@ -37,6 +38,8 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
 ";
 
     print!("{}", logo);
+
+    print!("{}", interuptions::PROMPT);
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };

@@ -131,14 +131,6 @@ impl Writer {
         }
     }
 
-    pub fn test(&mut self) {
-        let blank = ScreenChar {
-            ascii_character: b'b',
-            color_code: self.color_code,
-        };
-        self.buffer.chars[1][0].write(blank)
-    }
-
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -166,13 +158,15 @@ impl Writer {
     pub fn clear_screen(&mut self) {
         for y in 0..BUFFER_HEIGHT {
             self.clear_row(y);
-            self.collumn_pos = 0;
-            self.row_pos = 0
         }
+        self.collumn_pos = 0;
+        self.row_pos = 0;
     }
 }
 
 use core::fmt::{self};
+
+use crate::{interuptions, vga_buffer};
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
