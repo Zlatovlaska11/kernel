@@ -1,7 +1,4 @@
-use bump::BumpAllocator;
 use fixed_size_blocks::FixedSizeBlockAlocator;
-use linked_list::LinkedListAllocator;
-use linked_list_allocator::LockedHeap;
 
 #[global_allocator]
 static ALLOCATOR: Locked<FixedSizeBlockAlocator> = Locked::new(FixedSizeBlockAlocator::new());

@@ -1,10 +1,14 @@
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
+use core::{
+    borrow::BorrowMut,
+    ops::{Deref, DerefMut},
 };
 
+use alloc::string::{String, ToString};
+
 use crate::{
-    filesystem::{self, file_tree::{fs_system, insert_content, list_files, File, FileTree}}, print, println, serial_print, serial_println, vga_buffer::{self, WRITER}
+    filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
+    print,
+    vga_buffer::{self, WRITER},
 };
 
 pub fn handle_cmd(command: &mut String) {
@@ -23,6 +27,15 @@ pub fn handle_cmd(command: &mut String) {
         "clear" => WRITER.lock().clear_screen(),
         "touch" => make_file(rest),
         "ls" => list_files(),
+        "hash" => {
+            let head = fs_system.lock().tree_head.nodes.clone();
+            file_tree::fs_system.lock().seriliaze(head, None);
+        }
+        "mkdir" => {
+            unsafe { fs_system.force_unlock() };
+            let node = Node::new(rest);
+            fs_system.lock().cur_node.nodes.push(node)
+        }
         _default => print!("\ncommand not found"),
     }
 }
@@ -48,8 +61,5 @@ fn say_hi(command: &String) {
 }
 
 fn make_file(params: String) {
-
     insert_content(File::new(params, String::new()));
 }
-
-

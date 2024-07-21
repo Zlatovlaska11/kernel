@@ -7,18 +7,13 @@
 
 pub mod serial;
 
-use core::panic::PanicInfo;
+use core::{ops::DerefMut, panic::PanicInfo};
 
 use bootloader::{entry_point, BootInfo};
 use kernel::{
-    interuptions,
-    memory::{self, BootInfoFrameAllocator},
-    print, println,
+    filesystem::file_tree, interuptions, memory::{self, BootInfoFrameAllocator}, print
 };
-use x86_64::{
-    structures::paging::{Page, Translate},
-    VirtAddr,
-};
+use x86_64::{structures::paging::Page, VirtAddr};
 extern crate alloc;
 
 entry_point!(kernel_main);
@@ -59,6 +54,7 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    use kernel::println;
     println!("{}", info);
     kernel::hlt_loop();
 }

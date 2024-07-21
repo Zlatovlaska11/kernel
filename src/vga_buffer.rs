@@ -26,7 +26,7 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         collumn_pos: 0,
         row_pos: 0,
-        color_code: ColorByte::new(Color::Pink, Color::Black),
+        color_code: ColorByte::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -166,7 +166,6 @@ impl Writer {
 
 use core::fmt::{self};
 
-use crate::{interuptions, vga_buffer};
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {

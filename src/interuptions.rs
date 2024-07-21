@@ -1,7 +1,4 @@
-use core::{borrow::BorrowMut, default, ops::DerefMut};
 
-#[warn(dead_code)]
-use crate::cmd_handler::handle_cmd;
 use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
 use alloc::{
     fmt, str,
@@ -11,10 +8,7 @@ use lazy_static::lazy_static;
 use pc_keyboard::KeyCode;
 use pic8259::ChainedPics;
 use spin::Mutex;
-use x86_64::{
-    registers::control,
-    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
-};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
