@@ -9,6 +9,7 @@ use alloc::{
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use crate::print;
 use crate::{
     println,
     vga_buffer::{self, WRITER},
@@ -30,7 +31,7 @@ pub struct Node {
 pub struct FileTree {
     pub tree_head: Box<Node>,
     pub cur_node: Node,
-    pub prev_node: Option<Arc<Mutex<Node>>>,
+    pub prev_node: Option<Node>,
 }
 
 lazy_static! {
@@ -83,11 +84,6 @@ impl FileTree {
         }
 
         println!("{}", hash);
-    }
-
-    pub fn change_cur_node() {
-        
-        unimplemented!()
     }
 }
 
