@@ -1,5 +1,5 @@
 
-use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
+use crate::{cmd_handler, filesystem::file_tree, gdt, hlt_loop, print, println, vga_buffer};
 use alloc::{
     fmt, str,
     string::{String, ToString},
@@ -145,12 +145,18 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                         cmd.lock().push(character);
                         print!(" ")
                     }
+                    '.' => {
+                        cmd.lock().push_str(".");
+                        print!(".")
+
+                    }
                     '\n' => {
                         if !cmd.lock().is_empty() {
                             crate::cmd_handler::handle_cmd(&mut cmd.lock());
                         }
                         print!("\n");
-                        print!("{}", PROMPT);
+                        let dir = file_tree::fs_system.lock().cur_node.lock().dir_name.clone();
+                        print!("{} {}",dir, PROMPT);
                         cmd.lock().clear();
                         prefix.lock().clear();
                     }

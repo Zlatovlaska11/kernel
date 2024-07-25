@@ -94,6 +94,10 @@ impl Writer {
                 if self.collumn_pos >= BUFFER_WIDTH {
                     self.new_line();
                 }
+                if self.row_pos >= BUFFER_HEIGHT {
+
+                    self.clear_screen();
+                }
 
                 let row = self.row_pos;
                 let col = self.collumn_pos;

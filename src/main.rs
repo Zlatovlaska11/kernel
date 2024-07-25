@@ -7,11 +7,11 @@
 
 pub mod serial;
 
-use core::{ops::DerefMut, panic::PanicInfo};
+use core::panic::PanicInfo;
 
 use bootloader::{entry_point, BootInfo};
 use kernel::{
-    filesystem::file_tree, interuptions, memory::{self, BootInfoFrameAllocator}, print
+    interuptions, memory::{self, BootInfoFrameAllocator}, print
 };
 use x86_64::{structures::paging::Page, VirtAddr};
 extern crate alloc;
@@ -46,7 +46,6 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     // alloc some kernel heap size defined in the alocator.rs
     kernel::alocator::init_heap(&mut mapper, &mut frame_allocator).expect("allocation failed");
-
     kernel::hlt_loop()
 }
 

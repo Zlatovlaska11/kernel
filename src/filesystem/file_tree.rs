@@ -1,5 +1,3 @@
-use hashbrown::HashMap;
-
 use alloc::{
     boxed::Box,
     string::{String, ToString},
@@ -9,9 +7,8 @@ use alloc::{
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::print;
 use crate::{
-    println,
+    print, println,
     vga_buffer::{self, WRITER},
 };
 
@@ -23,23 +20,23 @@ pub struct File {
 
 #[derive(Clone, Debug)]
 pub struct Node {
-    dir_name: String,
+    pub dir_name: String,
     pub nodes: Vec<Node>,
     content: Vec<File>,
+    pub prev_node: Option<Box<Node>>,
 }
 
 pub struct FileTree {
     pub tree_head: Box<Node>,
-    pub cur_node: Node,
-    pub prev_node: Option<Node>,
+    pub cur_node: Arc<Mutex<Node>>,
 }
 
 lazy_static! {
-    pub static ref fs_system: Mutex<FileTree> = Mutex::new(FileTree::new());
+    pub static ref fs_system: Arc<Mutex<FileTree>> = Arc::new(Mutex::new(FileTree::new()));
 }
 
 pub fn insert_content(cn: File) {
-    fs_system.lock().cur_node.content.push(cn);
+    fs_system.lock().cur_node.lock().content.push(cn);
 }
 
 impl FileTree {
@@ -48,18 +45,19 @@ impl FileTree {
             dir_name: "/".to_string(),
             nodes: Vec::new(),
             content: Vec::new(),
+            prev_node: None,
         };
 
         let nd = Node {
             dir_name: "/".to_string(),
             nodes: Vec::new(),
             content: Vec::new(),
+            prev_node: None,
         };
 
         FileTree {
-            cur_node: nd,
+            cur_node: Arc::new(Mutex::new(nd)),
             tree_head: Box::new(head),
-            prev_node: None,
         }
     }
 
@@ -85,8 +83,34 @@ impl FileTree {
 
         println!("{}", hash);
     }
-}
 
+    pub fn change_node(&mut self, location: String) {
+        let fs_system_guard = self;
+
+        if location == ".." {
+            let mut cur_node_guard = fs_system_guard.cur_node.lock();
+
+            if let Some(prev_node) = &cur_node_guard.prev_node {
+                let prev_node_clone = (**prev_node).clone();
+                *cur_node_guard = prev_node_clone;
+            }
+            return;
+        }
+
+        // Clone the nodes vector for iteration
+        let nodes = fs_system_guard.cur_node.lock().nodes.clone();
+
+        // Iterate over nodes
+        for x in nodes {
+            if location == x.dir_name {
+                let mut cur_node_guard = fs_system_guard.cur_node.lock();
+                *cur_node_guard = x.clone();
+
+                break;
+            }
+        }
+    }
+}
 impl File {
     pub fn new(filename: String, content: String) -> Self {
         Self {
@@ -102,6 +126,7 @@ impl Node {
             dir_name,
             nodes: Vec::new(),
             content: Vec::new(),
+            prev_node: Some(Box::new(fs_system.lock().cur_node.lock().clone())),
         }
     }
 }
@@ -109,11 +134,11 @@ impl Node {
 pub fn list_files() {
     println!();
 
-    for f in &fs_system.lock().cur_node.content {
+    for f in &fs_system.lock().cur_node.lock().content {
         write_blue(f.name.clone())
     }
 
-    for d in &fs_system.lock().cur_node.nodes {
+    for d in &fs_system.lock().cur_node.lock().nodes {
         write_blue(d.dir_name.clone())
     }
 }
