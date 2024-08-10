@@ -85,11 +85,9 @@ impl FileTree {
     }
 
     pub fn change_node(&mut self, location: String) {
-        let fs_system_guard = self;
 
         if location == ".." {
-            let mut cur_node_guard = fs_system_guard.cur_node.lock();
-
+            let mut cur_node_guard = self.cur_node.lock();
             if let Some(prev_node) = &cur_node_guard.prev_node {
                 let prev_node_clone = (**prev_node).clone();
                 *cur_node_guard = prev_node_clone;
@@ -97,13 +95,12 @@ impl FileTree {
             return;
         }
 
-        // Clone the nodes vector for iteration
-        let nodes = fs_system_guard.cur_node.lock().nodes.clone();
+        let nds = &self.cur_node.lock().nodes.clone();
 
         // Iterate over nodes
-        for x in nodes {
+        for x in nds {
             if location == x.dir_name {
-                let mut cur_node_guard = fs_system_guard.cur_node.lock();
+                let mut cur_node_guard = self.cur_node.lock();
                 *cur_node_guard = x.clone();
 
                 break;

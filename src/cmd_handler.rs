@@ -1,8 +1,9 @@
-
-use alloc::string::{String, ToString};
+use alloc::{string::{String, ToString}, vec::Vec};
 
 use crate::{
-    filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node}, print, println, vga_buffer::{self, WRITER}
+    filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
+    print, println,
+    vga_buffer::{self, WRITER},
 };
 
 pub fn handle_cmd(command: &mut String) {
@@ -26,13 +27,24 @@ pub fn handle_cmd(command: &mut String) {
             file_tree::fs_system.lock().seriliaze(head, None);
         }
         "mkdir" => {
-            unsafe { fs_system.force_unlock() };
             let node = Node::new(rest);
-            fs_system.lock().cur_node.lock().nodes.push(node)
+            fs_system.lock().cur_node.lock().nodes.push(node);
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };
             fs_system.lock().change_node(rest)
+        }
+        "list" => {
+            let names: Vec<String> = fs_system
+                .lock()
+                .cur_node
+                .lock()
+                .nodes
+                .iter()
+                .map(|x| x.dir_name.clone())
+                .collect();
+
+            names.iter().map(|x| println!("{}", x));
         }
 
         _default => print!("\ncommand not found"),
