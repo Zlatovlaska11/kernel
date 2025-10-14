@@ -42,7 +42,7 @@ pub fn insert_content(cn: File) {
 impl FileTree {
     pub fn new() -> Self {
         let head = Node {
-            dir_name: "/".to_string(),
+            dir_name: "~/".to_string(),
             nodes: Vec::new(),
             content: Vec::new(),
             prev_node: None,
@@ -77,11 +77,11 @@ impl FileTree {
                     files.push_str(&pfs);
                     hash.push_str(&files);
                 }
+                println!("{}", hash);
                 return self.seriliaze(n.nodes, Some(hash));
             }
         }
 
-        println!("{}", hash);
     }
 
     pub fn change_node(&mut self, location: String) {
