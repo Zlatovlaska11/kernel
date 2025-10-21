@@ -34,7 +34,7 @@ pub fn handle_cmd(command: &mut String) {
             file_tree::fs_system.lock().serialize(head, None);
         }
         "mkdir" => {
-            fs_system.lock().mkdir(rest);
+            fs_system.lock().mkdir(rest.to_string());
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };
