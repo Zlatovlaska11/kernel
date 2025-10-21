@@ -18,16 +18,16 @@ pub struct File {
     name: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Node {
     pub dir_name: String,
-    pub nodes: Vec<Node>,
-    content: Vec<File>,
-    pub prev_node: Option<Box<Node>>,
+    pub content: Vec<File>,
+    pub prev_node: Option<Weak<Mutex<Node>>>,
+    pub nodes: Vec<Arc<Mutex<Node>>>,
 }
 
 pub struct FileTree {
-    pub tree_head: Box<Node>,
+    pub tree_head: Arc<Mutex<Node>>,
     pub cur_node: Arc<Mutex<Node>>,
 }
 
@@ -41,23 +41,10 @@ pub fn insert_content(cn: File) {
 
 impl FileTree {
     pub fn new() -> Self {
-        let head = Node {
-            dir_name: "~/".to_string(),
-            nodes: Vec::new(),
-            content: Vec::new(),
-            prev_node: None,
-        };
-
-        let nd = Node {
-            dir_name: "/".to_string(),
-            nodes: Vec::new(),
-            content: Vec::new(),
-            prev_node: None,
-        };
-
-        FileTree {
-            cur_node: Arc::new(Mutex::new(nd)),
-            tree_head: Box::new(head),
+        let head = Arc::new(Mutex::new(Node::new("/".to_string(), None)));
+        Self {
+            tree_head: head.clone(),
+            cur_node: head,
         }
     }
 
@@ -81,30 +68,29 @@ impl FileTree {
                 return self.seriliaze(n.nodes, Some(hash));
             }
         }
-
     }
 
-    pub fn change_node(&mut self, location: String) {
-
+    pub fn change_node(&mut self, location: &str) {
         if location == ".." {
-            let mut cur_node_guard = self.cur_node.lock();
-            if let Some(prev_node) = &cur_node_guard.prev_node {
-                let prev_node_clone = (**prev_node).clone();
-                *cur_node_guard = prev_node_clone;
+            let parent_opt = {
+                let cur = self.cur_node.lock();
+                cur.prev_node.as_ref().and_then(|w| w.upgrade())
+            };
+            if let Some(parent) = parent_opt {
+                self.cur_node = parent;
             }
             return;
         }
 
-        let nds = &self.cur_node.lock().nodes.clone();
-
-        // Iterate over nodes
-        for x in nds {
-            if location == x.dir_name {
-                let mut cur_node_guard = self.cur_node.lock();
-                *cur_node_guard = x.clone();
-
-                break;
-            }
+        let next_opt = {
+            let cur = self.cur_node.lock();
+            cur.nodes
+                .iter()
+                .find(|child| child.lock().dir_name == location)
+                .cloned()
+        };
+        if let Some(next) = next_opt {
+            self.cur_node = next;
         }
     }
 }
@@ -118,12 +104,12 @@ impl File {
 }
 
 impl Node {
-    pub fn new(dir_name: String) -> Self {
+    pub fn new(dir_name: String, parent: &Arc<Mutex<Node>>) -> Self {
         Node {
             dir_name,
             nodes: Vec::new(),
             content: Vec::new(),
-            prev_node: Some(Box::new(fs_system.lock().cur_node.lock().clone())),
+            prev_node: Some(Arc::downgrade(parent)),
         }
     }
 }
