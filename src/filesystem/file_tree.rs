@@ -73,7 +73,7 @@ impl FileTree {
         if location == ".." {
             let parent_opt = {
                 let cur = self.cur_node.lock();
-                print!("DEBUG: Current node: {}", cur.dir_name);
+                WRITER.lock().write_string("debug");
                 print!("DEBUG: Current node has {} children", cur.nodes.len());
                 cur.prev_node.as_ref().and_then(|w| w.upgrade())
             };
