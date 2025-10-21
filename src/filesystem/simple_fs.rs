@@ -1,10 +1,14 @@
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use lazy_static::lazy_static;
 use spin::Mutex;
 
 #[derive(Clone, Debug)]
 pub struct File {
     pub name: String,
+    pub content: String,
 }
 
 #[derive(Clone, Debug)]
@@ -45,7 +49,10 @@ impl FileSystem {
     pub fn get_current_dir_mut(&mut self) -> &mut Directory {
         let mut dir = &mut self.root;
         for dir_name in &self.current_path {
-            let index = dir.subdirs.iter().position(|d| &d.name == dir_name)
+            let index = dir
+                .subdirs
+                .iter()
+                .position(|d| &d.name == dir_name)
                 .expect("Directory not found");
             dir = &mut dir.subdirs[index];
         }
@@ -56,7 +63,9 @@ impl FileSystem {
     pub fn get_current_dir(&self) -> &Directory {
         let mut dir = &self.root;
         for dir_name in &self.current_path {
-            dir = &dir.subdirs.iter()
+            dir = &dir
+                .subdirs
+                .iter()
                 .find(|d| &d.name == dir_name)
                 .expect("Directory not found");
         }
@@ -75,7 +84,26 @@ impl FileSystem {
         if !current.files.iter().any(|f| f.name == name) {
             current.files.push(File {
                 name: name.to_string(),
+                content: String::new(),
             });
+        }
+    }
+
+    pub fn cat(&self, name: &str) {
+        let current = self.get_current_dir();
+        if current.files.iter().any(|f| f.name == name) {
+            core::println!("{}", current.files.iter().find(|f| f.name == name).unwrap().content);
+        } else {
+            crate::println!("File '{}' not found", name);
+        }
+    }
+
+    pub fn echo(&mut self, name: &str, content: &str) {
+        let current = self.get_current_dir_mut();
+        if let Some(file) = current.files.iter_mut().find(|f| f.name == name) {
+            file.content = content.to_string();
+        } else {
+            crate::println!("File '{}' not found", name);
         }
     }
 
@@ -100,13 +128,12 @@ impl FileSystem {
 
     pub fn ls(&self) {
         let current = self.get_current_dir();
-        
-        
+
         // Print subdirectories
         for dir in &current.subdirs {
             crate::println!("\n{}/", dir.name);
         }
-        
+
         // Print files
         for file in &current.files {
             crate::println!("\n{}", file.name);
