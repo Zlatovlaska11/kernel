@@ -67,9 +67,6 @@ impl FileSystem {
         let current = self.get_current_dir_mut();
         if !current.subdirs.iter().any(|d| d.name == name) {
             current.subdirs.push(Directory::new(name));
-            crate::println!("DEBUG: Created dir '{}'. Current dir now has {} subdirs", name, current.subdirs.len());
-        } else {
-            crate::println!("DEBUG: Directory '{}' already exists", name);
         }
     }
 
@@ -104,7 +101,6 @@ impl FileSystem {
     pub fn ls(&self) {
         let current = self.get_current_dir();
         
-        crate::println!("DEBUG: ls - Current dir has {} subdirs, {} files", current.subdirs.len(), current.files.len());
         
         // Print subdirectories
         for dir in &current.subdirs {
