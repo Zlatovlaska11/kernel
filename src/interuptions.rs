@@ -1,5 +1,6 @@
 
-use crate::{cmd_handler, filesystem::file_tree, gdt, hlt_loop, print, println, vga_buffer};
+use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
+use crate::filesystem::simple_fs;
 use alloc::{
     fmt, str,
     string::{String, ToString},

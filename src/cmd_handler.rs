@@ -1,7 +1,8 @@
-use alloc::string::{String, ToString};
+use alloc::{string::{String, ToString}, vec::Vec};
 use crate::{
     filesystem::simple_fs::FS,
-    print, println,
+    println,
+    vga_buffer::WRITER,
 };
 
 pub fn handle_cmd(command: &mut String) {
@@ -57,9 +58,15 @@ pub fn handle_cmd(command: &mut String) {
             println!("{}", path);
         }
         "clear" => {
-            // Assuming you have a clear function in your VGA buffer
-            crate::vga_buffer::WRITER.lock().clear_screen();
+            WRITER.lock().clear_screen();
         }
         _ => println!("\nCommand not found: {}", cmd),
+    }
+}
+
+pub fn handle_prefix_action(key: &str) {
+    match key {
+        "l" => WRITER.lock().clear_screen(),
+        _ => (),
     }
 }
