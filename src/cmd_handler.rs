@@ -57,6 +57,16 @@ pub fn handle_cmd(command: &mut String) {
             let path = FS.lock().pwd();
             println!("{}", path);
         }
+        "debug" => {
+            let fs = FS.lock();
+            let path = fs.pwd();
+            let current = fs.get_current_dir();
+            println!("Current path: {}", path);
+            println!("Subdirs in current: {}", current.subdirs.len());
+            for dir in &current.subdirs {
+                println!("  - {}", dir.name);
+            }
+        }
         "clear" => {
             WRITER.lock().clear_screen();
         }

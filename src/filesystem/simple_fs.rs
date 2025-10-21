@@ -42,7 +42,7 @@ impl FileSystem {
     }
 
     /// Get mutable reference to current directory
-    fn get_current_dir_mut(&mut self) -> &mut Directory {
+    pub fn get_current_dir_mut(&mut self) -> &mut Directory {
         let mut dir = &mut self.root;
         for dir_name in &self.current_path {
             let index = dir.subdirs.iter().position(|d| &d.name == dir_name)
@@ -53,7 +53,7 @@ impl FileSystem {
     }
 
     /// Get immutable reference to current directory
-    fn get_current_dir(&self) -> &Directory {
+    pub fn get_current_dir(&self) -> &Directory {
         let mut dir = &self.root;
         for dir_name in &self.current_path {
             dir = &dir.subdirs.iter()
@@ -86,9 +86,14 @@ impl FileSystem {
             self.current_path.clear();
         } else {
             // Check if directory exists before navigating
-            let current = self.get_current_dir();
-            if current.subdirs.iter().any(|d| d.name == path) {
+            let exists = {
+                let current = self.get_current_dir();
+                current.subdirs.iter().any(|d| d.name == path)
+            };
+            if exists {
                 self.current_path.push(path.to_string());
+            } else {
+                crate::println!("Directory '{}' not found", path);
             }
         }
     }
