@@ -4,17 +4,9 @@ use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::{
-    print, println,
-    vga_buffer::{self, WRITER},
-};
 
 use crate::{
     filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
