@@ -104,12 +104,12 @@ impl FileSystem {
         
         // Print subdirectories
         for dir in &current.subdirs {
-            crate::println!("{}/", dir.name);
+            crate::println!("\n{}/", dir.name);
         }
         
         // Print files
         for file in &current.files {
-            crate::println!("{}", file.name);
+            crate::println!("\n{}", file.name);
         }
     }
 
