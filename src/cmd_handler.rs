@@ -1,4 +1,20 @@
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    sync::{Arc, Weak},
+    vec::Vec,
+};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+use lazy_static::lazy_static;
+use spin::Mutex;
+
+use crate::{
+    print, println,
+    vga_buffer::{self, WRITER},
+};
 
 use crate::{
     filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
@@ -24,12 +40,11 @@ pub fn handle_cmd(command: &mut String) {
         "ls" => list_files(),
         "hash" => {
             let head = fs_system.lock().tree_head.lock().nodes.clone();
-            file_tree::fs_system.lock().seriliaze(head, None);
+            file_tree::fs_system.lock().serialize(head, None);
         }
         "mkdir" => {
-            let node = Arc::new(Mutex::new(Node::new(rest, &fs_system.lock().cur_node)));
+            let node = Arc::new(Mutex::new(Node::new(rest, Some(&fs_system.lock().cur_node))));
             fs_system.lock().cur_node.lock().nodes.push(node.clone());
-
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };

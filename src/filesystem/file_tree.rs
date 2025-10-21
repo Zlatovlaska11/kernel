@@ -11,6 +11,7 @@ use crate::{
     print, println,
     vga_buffer::{self, WRITER},
 };
+use alloc::format;
 
 #[derive(Clone, Debug)]
 pub struct File {
@@ -120,7 +121,7 @@ pub fn list_files() {
     }
 
     for d in &fs_system.lock().cur_node.lock().nodes {
-        write_blue(d.dir_name.clone())
+        write_blue(d.lock().dir_name.clone());
     }
 }
 
