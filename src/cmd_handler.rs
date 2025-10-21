@@ -35,6 +35,7 @@ pub fn handle_cmd(command: &mut String) {
         }
         "mkdir" => {
             fs_system.lock().mkdir(rest.as_str());
+            println!("dir: {} created", rest.as_str());
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };
