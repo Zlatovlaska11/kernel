@@ -31,11 +31,11 @@ pub fn handle_cmd(command: &mut String) {
             FS.lock().ls();
         }
         "echo" => {
-            let file_name = arg.split(' ')[0];
+            let file_name = arg.split(' ').next().unwrap_or("");
             if file_name.is_empty() {
                 println!("\nUsage: echo <filename>");
             } else {
-                FS.lock().echo(file_name, arg.split(' ')[1]);
+                FS.lock().echo(file_name, arg.split(' ').skip(1).collect::<Vec<&str>>().join(" ").as_str());
             }
         }
         "cat" => {
