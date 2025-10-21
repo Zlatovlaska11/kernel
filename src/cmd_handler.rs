@@ -7,7 +7,6 @@ use alloc::{
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-
 use crate::{
     filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
     print, println,
@@ -35,12 +34,21 @@ pub fn handle_cmd(command: &mut String) {
             file_tree::fs_system.lock().serialize(head, None);
         }
         "mkdir" => {
-            let node = Arc::new(Mutex::new(Node::new(rest, Some(&fs_system.lock().cur_node))));
-            fs_system.lock().cur_node.lock().nodes.push(node.clone());
+            let cur_node = fs_system.lock().cur_node.clone();
+            let node = Arc::new(Mutex::new(Node::new(rest, Some(&cur_node))));
+            cur_node.lock().nodes.push(node.clone());
+            fs_system.lock().cur_node = node; // Move into the new directory
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };
             fs_system.lock().change_node(&rest);
+            {
+                let cur = fs_system.lock().cur_node.lock();
+                println!("Current directory: {}", cur.dir_name);
+                for child in &cur.nodes {
+                    println!(" - Child: {}", child.lock().dir_name);
+                }
+            }
         }
         "list" => {
             let names: Vec<String> = fs_system
