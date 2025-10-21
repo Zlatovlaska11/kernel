@@ -42,13 +42,6 @@ pub fn handle_cmd(command: &mut String) {
         "cd" => {
             unsafe { fs_system.force_unlock() };
             fs_system.lock().change_node(&rest);
-            {
-                let cur = fs_system.lock().cur_node.lock();
-                println!("Current directory: {}", cur.dir_name);
-                for child in &cur.nodes {
-                    println!(" - Child: {}", child.lock().dir_name);
-                }
-            }
         }
         "list" => {
             let names: Vec<String> = fs_system
