@@ -35,7 +35,6 @@ pub fn handle_cmd(command: &mut String) {
                 println!("\nUsage: mkdir <dirname>");
             } else {
                 FS.lock().mkdir(arg);
-                println!("Directory '{}' created", arg);
             }
         }
         "touch" => {
@@ -43,7 +42,7 @@ pub fn handle_cmd(command: &mut String) {
                 println!("\nUsage: touch <filename>");
             } else {
                 FS.lock().touch(arg);
-                println!("File '{}' created", arg);
+                println!("\nFile '{}' created", arg);
             }
         }
         "cd" => {
@@ -55,7 +54,7 @@ pub fn handle_cmd(command: &mut String) {
         }
         "pwd" => {
             let path = FS.lock().pwd();
-            println!("{}", path);
+            println!("\n{}", path);
         }
         "debug" => {
             let fs = FS.lock();
