@@ -73,9 +73,15 @@ impl FileTree {
         if location == ".." {
             let parent_opt = {
                 let cur = self.cur_node.lock();
+                println!("DEBUG: Current node: {}", cur.dir_name);
+                println!("DEBUG: Current node has {} children", cur.nodes.len());
                 cur.prev_node.as_ref().and_then(|w| w.upgrade())
             };
             if let Some(parent) = parent_opt {
+                let parent_guard = parent.lock();
+                println!("DEBUG: Moving to parent: {}", parent_guard.dir_name);
+                println!("DEBUG: Parent has {} children", parent_guard.nodes.len());
+                drop(parent_guard);
                 self.cur_node = parent;
             }
             return;
@@ -92,16 +98,21 @@ impl FileTree {
             self.cur_node = next;
         }
     }
+
     pub fn mkdir(&mut self, dir_name: &str) {
         let new_node = Arc::new(Mutex::new(Node::new(
             dir_name.to_string(),
             Some(&self.cur_node),
         )));
 
-        // ADD THE NEW NODE TO CURRENT NODE'S CHILDREN
         self.cur_node.lock().nodes.push(new_node);
+        
+        let cur_guard = self.cur_node.lock();
+        println!("DEBUG: Created dir '{}' in '{}'. Parent now has {} children", 
+                 dir_name, cur_guard.dir_name, cur_guard.nodes.len());
     }
 }
+
 impl File {
     pub fn new(filename: String, content: String) -> Self {
         Self {
