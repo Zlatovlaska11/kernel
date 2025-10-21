@@ -1,155 +1,129 @@
 use alloc::{
-    boxed::Box,
     string::{String, ToString},
-    sync::{Arc, Weak},
     vec::Vec,
 };
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::{
-    print, println,
-    vga_buffer::{self, WRITER},
-};
-use alloc::format;
-
 #[derive(Clone, Debug)]
 pub struct File {
-    content: String,
-    name: String,
+    pub name: String,
 }
 
-#[derive(Debug)]
-pub struct Node {
-    pub dir_name: String,
-    pub content: Vec<File>,
-    pub prev_node: Option<Weak<Mutex<Node>>>,
-    pub nodes: Vec<Arc<Mutex<Node>>>,
+#[derive(Clone, Debug)]
+pub struct Directory {
+    pub name: String,
+    pub files: Vec<File>,
+    pub subdirs: Vec<Directory>,
 }
 
-pub struct FileTree {
-    pub tree_head: Arc<Mutex<Node>>,
-    pub cur_node: Arc<Mutex<Node>>,
+pub struct FileSystem {
+    pub root: Directory,
+    pub current_path: Vec<String>,
 }
 
 lazy_static! {
-    pub static ref fs_system: Arc<Mutex<FileTree>> = Arc::new(Mutex::new(FileTree::new()));
+    pub static ref FS: Mutex<FileSystem> = Mutex::new(FileSystem::new());
 }
 
-pub fn insert_content(cn: File) {
-    fs_system.lock().cur_node.lock().content.push(cn);
+impl Directory {
+    pub fn new(name: &str) -> Self {
+        Directory {
+            name: name.to_string(),
+            files: Vec::new(),
+            subdirs: Vec::new(),
+        }
+    }
 }
 
-impl FileTree {
+impl FileSystem {
     pub fn new() -> Self {
-        let head = Arc::new(Mutex::new(Node::new("/".to_string(), None)));
-        Self {
-            tree_head: head.clone(),
-            cur_node: head,
+        FileSystem {
+            root: Directory::new("/"),
+            current_path: Vec::new(),
         }
     }
 
-    pub fn serialize(&mut self, tree_head: Vec<Arc<Mutex<Node>>>, cur_hash: Option<String>) {
-        let mut hash = match cur_hash {
-            Some(it) => it,
-            None => String::new(),
-        };
-        for n in tree_head {
-            let n_guard = n.lock();
-            if n_guard.nodes.is_empty() {
-                hash.push_str("(");
-                continue;
-            } else {
-                for f in &n_guard.content {
-                    let path = format!("{}/{}", n_guard.dir_name, f.name);
-                    hash.push_str(&path);
-                }
-                return self.serialize(n_guard.nodes.clone(), Some(hash));
-            }
+    /// Get mutable reference to current directory
+    fn get_current_dir_mut(&mut self) -> &mut Directory {
+        let mut dir = &mut self.root;
+        for dir_name in &self.current_path {
+            dir = &mut dir
+                .subdirs
+                .iter_mut()
+                .find(|d| &d.name == dir_name)
+                .expect("Directory not found");
         }
+        dir
     }
 
-    pub fn change_node(&mut self, location: &str) {
-        if location == ".." {
-            let parent_opt = {
-                let cur = self.cur_node.lock();
-                WRITER.lock().write_string("debug");
-                print!("DEBUG: Current node has {} children", cur.nodes.len());
-                cur.prev_node.as_ref().and_then(|w| w.upgrade())
-            };
-            if let Some(parent) = parent_opt {
-                let parent_guard = parent.lock();
-                println!("DEBUG: Moving to parent: {}", parent_guard.dir_name);
-                println!("DEBUG: Parent has {} children", parent_guard.nodes.len());
-                drop(parent_guard);
-                self.cur_node = parent;
-            }
-            return;
-        }
-
-        let next_opt = {
-            let cur = self.cur_node.lock();
-            cur.nodes
+    /// Get immutable reference to current directory
+    fn get_current_dir(&self) -> &Directory {
+        let mut dir = &self.root;
+        for dir_name in &self.current_path {
+            dir = &dir
+                .subdirs
                 .iter()
-                .find(|child| child.lock().dir_name == location)
-                .cloned()
-        };
-        if let Some(next) = next_opt {
-            self.cur_node = next;
+                .find(|d| &d.name == dir_name)
+                .expect("Directory not found");
+        }
+        dir
+    }
+
+    pub fn mkdir(&mut self, name: &str) {
+        let current = self.get_current_dir_mut();
+        if !current.subdirs.iter().any(|d| d.name == name) {
+            current.subdirs.push(Directory::new(name));
         }
     }
 
-    pub fn mkdir(&mut self, dir_name: &str) {
-        let new_node = Arc::new(Mutex::new(Node::new(
-            dir_name.to_string(),
-            Some(&self.cur_node),
-        )));
-
-        self.cur_node.lock().nodes.push(new_node);
-        
-        let cur_guard = self.cur_node.lock();
-        println!("DEBUG: Created dir '{}' in '{}'. Parent now has {} children", 
-                 dir_name, cur_guard.dir_name, cur_guard.nodes.len());
-    }
-}
-
-impl File {
-    pub fn new(filename: String, content: String) -> Self {
-        Self {
-            content,
-            name: filename,
+    pub fn touch(&mut self, name: &str) {
+        let current = self.get_current_dir_mut();
+        if !current.files.iter().any(|f| f.name == name) {
+            current.files.push(File {
+                name: name.to_string(),
+            });
         }
     }
-}
 
-impl Node {
-    pub fn new(dir_name: String, parent: Option<&Arc<Mutex<Node>>>) -> Self {
-        Node {
-            dir_name,
-            content: Vec::new(),
-            nodes: Vec::new(),
-            prev_node: parent.map(|p| Arc::downgrade(p)),
+    pub fn cd(&mut self, path: &str) {
+        if path == ".." {
+            self.current_path.pop();
+        } else if path == "/" {
+            self.current_path.clear();
+        } else {
+            // Check if directory exists before navigating
+            let current = self.get_current_dir();
+            if current.subdirs.iter().any(|d| d.name == path) {
+                self.current_path.push(path.to_string());
+            }
         }
     }
-}
 
-pub fn list_files() {
-    println!();
+    pub fn ls(&self) {
+        let current = self.get_current_dir();
 
-    for f in &fs_system.lock().cur_node.lock().content {
-        write_blue(f.name.clone())
+        // Print subdirectories
+        for dir in &current.subdirs {
+            crate::println!("{}/", dir.name);
+        }
+
+        // Print files
+        for file in &current.files {
+            crate::println!("{}", file.name);
+        }
     }
 
-    for d in &fs_system.lock().cur_node.lock().nodes {
-        write_blue(d.lock().dir_name.clone());
+    pub fn pwd(&self) -> String {
+        if self.current_path.is_empty() {
+            "/".to_string()
+        } else {
+            let mut path = String::from("/");
+            for dir in &self.current_path {
+                path.push_str(dir);
+                path.push('/');
+            }
+            path
+        }
     }
-}
-
-fn write_blue(args: String) {
-    vga_buffer::WRITER
-        .lock()
-        .change_color(vga_buffer::Color::Blue);
-    let ags = args + " ";
-    WRITER.lock().write_string(&ags);
-    WRITER.lock().change_color(vga_buffer::Color::White)
 }

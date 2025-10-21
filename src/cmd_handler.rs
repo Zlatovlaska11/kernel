@@ -1,87 +1,65 @@
-use alloc::{
-    boxed::Box,
-    string::{String, ToString},
-    sync::{Arc, Weak},
-    vec::Vec,
-};
-use lazy_static::lazy_static;
-use spin::Mutex;
-
+use alloc::string::{String, ToString};
 use crate::{
-    filesystem::file_tree::{self, fs_system, insert_content, list_files, File, Node},
+    filesystem::simple_fs::FS,
     print, println,
-    vga_buffer::{self, WRITER},
 };
 
 pub fn handle_cmd(command: &mut String) {
-    let comm: String;
-    let mut rest: String = String::new();
-    if let Some(cmd) = command.find(' ') {
-        comm = command[0..cmd].as_mut().to_string();
-        rest = command[cmd + 1..command.len()].to_string()
-    } else {
-        comm = command.to_string();
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    
+    if parts.is_empty() {
+        return;
     }
 
-    match comm.as_str() {
-        "help" => print!("\nthis is help"),
-        "sayhi" => say_hi(&rest),
-        "clear" => WRITER.lock().clear_screen(),
-        "touch" => make_file(rest),
-        "ls" => list_files(),
-        "hash" => {
-            let head = fs_system.lock().tree_head.lock().nodes.clone();
-            file_tree::fs_system.lock().serialize(head, None);
+    let cmd = parts[0];
+    let arg = if parts.len() > 1 { parts[1] } else { "" };
+
+    match cmd {
+        "help" => {
+            println!("\nAvailable commands:");
+            println!("  ls          - list files and directories");
+            println!("  mkdir NAME  - create a directory");
+            println!("  touch NAME  - create a file");
+            println!("  cd NAME     - change directory");
+            println!("  cd ..       - go to parent directory");
+            println!("  cd /        - go to root directory");
+            println!("  pwd         - print working directory");
+            println!("  clear       - clear screen");
+        }
+        "ls" => {
+            FS.lock().ls();
         }
         "mkdir" => {
-            let dir_name = rest.clone();
-            fs_system.lock().mkdir(dir_name.as_str());
-            println!("dir: {} created", dir_name.as_str());
-        }
-        "cd" => {
-            // Just call change_node directly without force_unlock
-            let location = rest.clone();
-            fs_system.lock().change_node(&location);
-        }
-        "list" => {
-            let names: Vec<String> = fs_system
-                .lock()
-                .cur_node
-                .lock()
-                .nodes
-                .iter()
-                .map(|x| x.lock().dir_name.clone())
-                .collect();
-
-            for name in names {
-                println!("{}", name);
+            if arg.is_empty() {
+                println!("\nUsage: mkdir <dirname>");
+            } else {
+                FS.lock().mkdir(arg);
+                println!("Directory '{}' created", arg);
             }
         }
-
-        _default => print!("\ncommand not found"),
+        "touch" => {
+            if arg.is_empty() {
+                println!("\nUsage: touch <filename>");
+            } else {
+                FS.lock().touch(arg);
+                println!("File '{}' created", arg);
+            }
+        }
+        "cd" => {
+            if arg.is_empty() {
+                println!("\nUsage: cd <dirname>");
+            } else {
+                FS.lock().cd(arg);
+            }
+        }
+        "pwd" => {
+            let path = FS.lock().pwd();
+            println!("{}", path);
+        }
+        "clear" => {
+            // Assuming you have a clear function in your VGA buffer
+            crate::vga_buffer::WRITER.lock().clear_screen();
+        }
+        _ => println!("\nCommand not found: {}", cmd),
     }
-}
-
-pub fn handle_prefix_action(key: &str) {
-    match key {
-        "l" => WRITER.lock().clear_screen(),
-        _ => (),
-    }
-}
-
-fn say_hi(command: &String) {
-    if command.is_empty() {
-        print!("\nwrong args")
-    }
-    WRITER.lock().change_color(vga_buffer::Color::Yellow);
-
-    print!("\nZlatovlas (god): ");
-
-    WRITER.lock().change_color(vga_buffer::Color::Pink);
-
-    print!("{}", command);
-}
-
-fn make_file(params: String) {
-    insert_content(File::new(params, String::new()));
 }
