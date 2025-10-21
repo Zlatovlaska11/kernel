@@ -45,9 +45,9 @@ impl FileSystem {
     fn get_current_dir_mut(&mut self) -> &mut Directory {
         let mut dir = &mut self.root;
         for dir_name in &self.current_path {
-            dir = &mut dir.subdirs.iter_mut()
-                .find(|d| &d.name == dir_name)
+            let index = dir.subdirs.iter().position(|d| &d.name == dir_name)
                 .expect("Directory not found");
+            dir = &mut dir.subdirs[index];
         }
         dir
     }
