@@ -34,12 +34,14 @@ pub fn handle_cmd(command: &mut String) {
             file_tree::fs_system.lock().serialize(head, None);
         }
         "mkdir" => {
-            fs_system.lock().mkdir(rest.as_str());
-            println!("dir: {} created", rest.as_str());
+            let dir_name = rest.clone();
+            fs_system.lock().mkdir(dir_name.as_str());
+            println!("dir: {} created", dir_name.as_str());
         }
         "cd" => {
-            unsafe { fs_system.force_unlock() };
-            fs_system.lock().change_node(&rest);
+            // Just call change_node directly without force_unlock
+            let location = rest.clone();
+            fs_system.lock().change_node(&location);
         }
         "list" => {
             let names: Vec<String> = fs_system
@@ -51,7 +53,9 @@ pub fn handle_cmd(command: &mut String) {
                 .map(|x| x.lock().dir_name.clone())
                 .collect();
 
-            names.iter().map(|x| println!("{}", x));
+            for name in names {
+                println!("{}", name);
+            }
         }
 
         _default => print!("\ncommand not found"),
