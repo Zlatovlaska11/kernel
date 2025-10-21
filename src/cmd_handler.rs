@@ -30,6 +30,22 @@ pub fn handle_cmd(command: &mut String) {
         "ls" => {
             FS.lock().ls();
         }
+        "echo" => {
+            let file_name = arg.split(' ')[0];
+            if file_name.is_empty() {
+                println!("\nUsage: echo <filename>");
+            } else {
+                FS.lock().echo(file_name, arg.split(' ')[1]);
+            }
+        }
+        "cat" => {
+            let file_name = arg;
+            if file_name.is_empty() {
+                println!("\nUsage: cat <filename>");
+            } else {
+                FS.lock().cat(file_name);
+            }
+        }
         "mkdir" => {
             if arg.is_empty() {
                 println!("\nUsage: mkdir <dirname>");
