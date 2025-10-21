@@ -23,16 +23,17 @@ pub fn handle_cmd(command: &mut String) {
         "touch" => make_file(rest),
         "ls" => list_files(),
         "hash" => {
-            let head = fs_system.lock().tree_head.nodes.clone();
+            let head = fs_system.lock().tree_head.lock().nodes.clone();
             file_tree::fs_system.lock().seriliaze(head, None);
         }
         "mkdir" => {
-            let node = Node::new(rest);
-            fs_system.lock().cur_node.lock().nodes.push(node);
+            let node = Arc::new(Mutex::new(Node::new(rest, &fs_system.lock().cur_node)));
+            fs_system.lock().cur_node.lock().nodes.push(node.clone());
+
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };
-            fs_system.lock().change_node(rest)
+            fs_system.lock().change_node(&rest);
         }
         "list" => {
             let names: Vec<String> = fs_system
@@ -41,7 +42,7 @@ pub fn handle_cmd(command: &mut String) {
                 .lock()
                 .nodes
                 .iter()
-                .map(|x| x.dir_name.clone())
+                .map(|x| x.lock().dir_name.clone())
                 .collect();
 
             names.iter().map(|x| println!("{}", x));

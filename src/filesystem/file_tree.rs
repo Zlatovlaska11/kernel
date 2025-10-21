@@ -7,7 +7,6 @@ use alloc::{
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-
 use crate::{
     print, println,
     vga_buffer::{self, WRITER},
@@ -49,24 +48,22 @@ impl FileTree {
         }
     }
 
-    pub fn seriliaze(&mut self, tree_head: Vec<Node>, cur_hash: Option<String>) {
+    pub fn serialize(&mut self, tree_head: Vec<Arc<Mutex<Node>>>, cur_hash: Option<String>) {
         let mut hash = match cur_hash {
             Some(it) => it,
             None => String::new(),
         };
         for n in tree_head {
-            if n.clone().nodes.is_empty() {
+            let n_guard = n.lock();
+            if n_guard.nodes.is_empty() {
                 hash.push_str("(");
                 continue;
             } else {
-                let mut files = String::new();
-                for f in n.content {
-                    let pfs = "{}/".to_string() + &f.name;
-                    files.push_str(&pfs);
-                    hash.push_str(&files);
+                for f in &n_guard.content {
+                    let path = format!("{}/{}", n_guard.dir_name, f.name);
+                    hash.push_str(&path);
                 }
-                println!("{}", hash);
-                return self.seriliaze(n.nodes, Some(hash));
+                return self.serialize(n_guard.nodes.clone(), Some(hash));
             }
         }
     }
@@ -105,12 +102,12 @@ impl File {
 }
 
 impl Node {
-    pub fn new(dir_name: String, parent: &Arc<Mutex<Node>>) -> Self {
+    pub fn new(dir_name: String, parent: Option<&Arc<Mutex<Node>>>) -> Self {
         Node {
             dir_name,
-            nodes: Vec::new(),
             content: Vec::new(),
-            prev_node: Some(Arc::downgrade(parent)),
+            nodes: Vec::new(),
+            prev_node: parent.map(|p| Arc::downgrade(p)),
         }
     }
 }
