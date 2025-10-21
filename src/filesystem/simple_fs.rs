@@ -92,7 +92,7 @@ impl FileSystem {
     pub fn cat(&self, name: &str) {
         let current = self.get_current_dir();
         if current.files.iter().any(|f| f.name == name) {
-            core::println!("{}", current.files.iter().find(|f| f.name == name).unwrap().content);
+            crate::println!("{}", current.files.iter().find(|f| f.name == name).unwrap().content);
         } else {
             crate::println!("File '{}' not found", name);
         }
