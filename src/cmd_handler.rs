@@ -34,10 +34,7 @@ pub fn handle_cmd(command: &mut String) {
             file_tree::fs_system.lock().serialize(head, None);
         }
         "mkdir" => {
-            let cur_node = fs_system.lock().cur_node.clone();
-            let node = Arc::new(Mutex::new(Node::new(rest, Some(&cur_node))));
-            cur_node.lock().nodes.push(node.clone());
-            fs_system.lock().cur_node = node; // Move into the new directory
+            fs_system.lock().mkdir(rest);
         }
         "cd" => {
             unsafe { fs_system.force_unlock() };

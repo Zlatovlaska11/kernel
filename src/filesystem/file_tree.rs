@@ -92,6 +92,15 @@ impl FileTree {
             self.cur_node = next;
         }
     }
+    pub fn mkdir(&mut self, dir_name: &str) {
+        let new_node = Arc::new(Mutex::new(Node::new(
+            dir_name.to_string(),
+            Some(&self.cur_node),
+        )));
+
+        // ADD THE NEW NODE TO CURRENT NODE'S CHILDREN
+        self.cur_node.lock().nodes.push(new_node);
+    }
 }
 impl File {
     pub fn new(filename: String, content: String) -> Self {
