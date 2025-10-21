@@ -155,7 +155,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                             crate::cmd_handler::handle_cmd(&mut cmd.lock());
                         }
                         print!("\n");
-                        let dir = file_tree::fs_system.lock().cur_node.lock().dir_name.clone();
+                        let dir = simple_fs::FS.lock().pwd();
                         print!("{} {}",dir, PROMPT);
                         cmd.lock().clear();
                         prefix.lock().clear();
