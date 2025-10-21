@@ -42,7 +42,7 @@ impl FileSystem {
     }
 
     /// Get mutable reference to current directory
-    pub fn get_current_dir_mut(&mut self) -> &mut Directory {
+    fn get_current_dir_mut(&mut self) -> &mut Directory {
         let mut dir = &mut self.root;
         for dir_name in &self.current_path {
             let index = dir.subdirs.iter().position(|d| &d.name == dir_name)
@@ -53,7 +53,7 @@ impl FileSystem {
     }
 
     /// Get immutable reference to current directory
-    pub fn get_current_dir(&self) -> &Directory {
+    fn get_current_dir(&self) -> &Directory {
         let mut dir = &self.root;
         for dir_name in &self.current_path {
             dir = &dir.subdirs.iter()
@@ -67,6 +67,9 @@ impl FileSystem {
         let current = self.get_current_dir_mut();
         if !current.subdirs.iter().any(|d| d.name == name) {
             current.subdirs.push(Directory::new(name));
+            crate::println!("DEBUG: Created dir '{}'. Current dir now has {} subdirs", name, current.subdirs.len());
+        } else {
+            crate::println!("DEBUG: Directory '{}' already exists", name);
         }
     }
 
@@ -100,6 +103,8 @@ impl FileSystem {
 
     pub fn ls(&self) {
         let current = self.get_current_dir();
+        
+        crate::println!("DEBUG: ls - Current dir has {} subdirs, {} files", current.subdirs.len(), current.files.len());
         
         // Print subdirectories
         for dir in &current.subdirs {
