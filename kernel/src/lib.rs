@@ -1,4 +1,3 @@
-#![feature(const_mut_refs)]
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
@@ -11,17 +10,26 @@ extern crate alloc;
 
 pub mod alocator;
 pub mod cmd_handler;
+pub mod filesystem;
 pub mod gdt;
 pub mod interuptions;
 pub mod memory;
 pub mod serial;
 pub mod vga_buffer;
-pub mod filesystem;
 
 pub fn init() {
+    use x86_64::instructions::port::Port;
     gdt::init();
     interuptions::init_idt();
-    unsafe { interuptions::PIC.lock().initialize() };
+    unsafe {
+        interuptions::PIC.lock().initialize();
+        // Mask all PIC IRQs except IRQ0 (timer) and IRQ1 (keyboard).
+        // Un-handled IRQ vectors have no IDT entry → #GP → double fault.
+        let mut master_mask: Port<u8> = Port::new(0x21);
+        let mut slave_mask: Port<u8> = Port::new(0xA1);
+        master_mask.write(0b11111100); // unmask IRQ0, IRQ1 only
+        slave_mask.write(0b11111111);  // mask all slave IRQs
+    }
     x86_64::instructions::interrupts::enable();
 }
 pub trait Testable {
@@ -70,14 +78,14 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     }
 }
 #[cfg(test)]
-use bootloader::{entry_point, BootInfo};
+use bootloader_api::{entry_point, BootInfo};
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
 
 /// Entry point for `cargo test`
 #[cfg(test)]
-fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
+fn test_kernel_main(_boot_info: &'static mut BootInfo) -> ! {
     init();
     test_main();
     hlt_loop();

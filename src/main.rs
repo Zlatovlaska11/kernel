@@ -1,65 +1,14 @@
-// in src/main.rs
-#![no_std]
-#![no_main]
-#![feature(custom_test_frameworks)]
-#![test_runner(kernel::test_runner)]
-#![reexport_test_harness_main = "test_main"]
+use std::{path::PathBuf, process::Command};
 
-pub mod serial;
+fn main() {
+    let disk_image = PathBuf::from(env!("BIOS_IMAGE"));
 
-use core::panic::PanicInfo;
+    let mut qemu = Command::new("qemu-system-x86_64");
+    qemu.arg("-drive")
+        .arg(format!("format=raw,file={}", disk_image.display()))
+        .arg("-serial")
+        .arg("stdio");
 
-use bootloader::{entry_point, BootInfo};
-use kernel::{
-    interuptions, memory::{self, BootInfoFrameAllocator}, print
-};
-use x86_64::{structures::paging::Page, VirtAddr};
-extern crate alloc;
-
-entry_point!(kernel_main);
-
-#[no_mangle]
-pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    kernel::init();
-
-    let logo = r"
- _______       _             _             _____ _____ 
-|___  / |     | |           | |           |  _  /  ___|
-   / /| | __ _| |_ _____   _| | __ _ ___  | | | \ `--. 
-  / / | |/ _` | __/ _ \ \ / / |/ _` / __| | | | |`--. \
-./ /__| | (_| | || (_) \ V /| | (_| \__ \ \ \_/ /\__/ /
-\_____/_|\__,_|\__\___/ \_/ |_|\__,_|___/  \___/\____/ 
-        
-";
-
-    print!("{}", logo);
-
-    print!("{}", interuptions::PROMPT);
-
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
-
-    // map an unused page
-    let page = Page::containing_address(VirtAddr::new(0xdeadbeaf000));
-    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
-
-    // alloc some kernel heap size defined in the alocator.rs
-    kernel::alocator::init_heap(&mut mapper, &mut frame_allocator).expect("allocation failed");
-    kernel::hlt_loop()
-}
-
-/// This function is called on panic.
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    use kernel::println;
-    println!("{}", info);
-    kernel::hlt_loop();
-}
-
-#[cfg(test)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    kernel::test_panic_handler(info)
+    let exit_status = qemu.status().unwrap();
+    std::process::exit(exit_status.code().unwrap_or(-1));
 }

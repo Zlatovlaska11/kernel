@@ -1,6 +1,5 @@
-
-use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
 use crate::filesystem::simple_fs;
+use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
 use alloc::{
     fmt, str,
     string::{String, ToString},
@@ -73,6 +72,7 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
+        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
         unsafe {
             idt.page_fault.set_handler_fn(page_interupt_handler);
             idt[InteruptIndex::TIMER.as_usize()].set_handler_fn(timer_interrupt_handler);
@@ -80,6 +80,10 @@ lazy_static! {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+            // Catch-all for all remaining PIC IRQ vectors (spurious IRQs cannot be masked).
+            for i in (PIC_1_OFFSET as usize + 2)..(PIC_2_OFFSET as usize + 8) {
+                idt[i].set_handler_fn(spurious_interrupt_handler);
+            }
         }
         idt
     };
@@ -149,7 +153,6 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                     '.' => {
                         cmd.lock().push_str(".");
                         print!(".")
-
                     }
                     '\n' => {
                         if !cmd.lock().is_empty() {
@@ -157,7 +160,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                         }
                         print!("\n");
                         let dir = simple_fs::FS.lock().pwd();
-                        print!("{} {}",dir, PROMPT);
+                        print!("{} {}", dir, PROMPT);
                         cmd.lock().clear();
                         prefix.lock().clear();
                     }
@@ -193,6 +196,19 @@ pub fn init_idt() {
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    panic!("EXCEPTION: GENERAL PROTECTION FAULT\nerror_code: {:#x}\n{:#?}", error_code, stack_frame);
+}
+
+/// Silently acknowledge spurious PIC interrupts (IRQ7/IRQ15 cannot be masked).
+extern "x86-interrupt" fn spurious_interrupt_handler(_frame: InterruptStackFrame) {
+    // Do NOT send EOI for a spurious interrupt — the PIC did not set the ISR bit.
+    crate::serial_println!("[spurious IRQ]");
 }
 
 extern "x86-interrupt" fn double_fault_handler(
