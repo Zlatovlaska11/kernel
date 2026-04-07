@@ -4,8 +4,8 @@ use fixed_size_blocks::FixedSizeBlockAlocator;
 static ALLOCATOR: Locked<FixedSizeBlockAlocator> = Locked::new(FixedSizeBlockAlocator::new());
 
 pub mod bump;
-pub mod linked_list;
 pub mod fixed_size_blocks;
+pub mod linked_list;
 
 pub struct Locked<A> {
     inner: spin::Mutex<A>,
@@ -27,8 +27,7 @@ fn align_up(addr: usize, align: usize) -> usize {
     let reminder = addr % align;
     if reminder == 0 {
         addr
-    }
-    else {
+    } else {
         addr - reminder + align
     }
 }
@@ -57,6 +56,21 @@ use x86_64::{
     },
     VirtAddr,
 };
+
+/// Initialize the kernel heap using the global memory module (new memory/ API).
+pub fn init_heap_global() {
+    use x86_64::structures::paging::PageTableFlags;
+    let page_count = (HEAP_SIZE + 4095) / 4096;
+    crate::memory::allocate_pages(
+        VirtAddr::new(HEAP_START as u64),
+        page_count,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+    )
+    .expect("heap page allocation failed");
+    unsafe {
+        ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
+    }
+}
 
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
