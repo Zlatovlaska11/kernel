@@ -3,6 +3,7 @@ use core::{
     alloc::{GlobalAlloc, Layout}, mem, ptr, usize
 };
 
+#[allow(non_camel_case_types)]
 struct node {
     size: usize,
     next: Option<&'static mut node>,

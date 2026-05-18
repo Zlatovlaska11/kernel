@@ -1,16 +1,35 @@
+pub mod join;
+pub mod mutex;
+pub mod mutex_guard;
 pub mod scheduler;
 mod switch;
 
 use core::sync::atomic::AtomicU64;
 
 use alloc::boxed::Box;
+use alloc::sync::Arc;
+use spin::Mutex;
+
+use crate::task::join::JoinState;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum TaskState {
+    Running,
+    Ready,
+    Blocked,
+    Dead,
+}
 
 pub struct Task {
     pub id: u64,
     pub stack: Box<[u8; 8192]>,
     pub rsp: u64,
+    pub state: TaskState,
+    pub wake_time: Option<u64>,
+
+    pub join_state: Option<Arc<Mutex<JoinState>>>,
 }
 
 impl Task {
@@ -23,8 +42,16 @@ impl Task {
             id: NEXT_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed),
             stack,
             rsp,
+            state: TaskState::Ready,
+            wake_time: None,
+            join_state: None,
         }
     }
+}
+
+/// Blocks the current task — CPU goes to other tasks while waiting.
+pub fn sleep(ms: u64) {
+    scheduler::do_sleep(ms);
 }
 
 fn plant_stack(stack: &mut [u8; 8192], entry: fn() -> ()) -> u64 {

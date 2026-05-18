@@ -216,9 +216,9 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    scheduler::TICK_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     unsafe {
-        PIC.lock()
-            .notify_end_of_interrupt(InteruptIndex::TIMER.as_u8());
+        PIC.lock().notify_end_of_interrupt(InteruptIndex::TIMER.as_u8());
     }
     scheduler::preempt();
 }

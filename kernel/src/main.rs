@@ -9,9 +9,12 @@ use core::panic::PanicInfo;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-use kernel::{interuptions, memory, print, spin_pause};
-use x86_64::instructions::interrupts;
+use kernel::task::join::JoinHandle;
 use kernel::task::scheduler;
+use kernel::task::scheduler::SCHEDULER;
+use kernel::task::sleep;
+use kernel::{interuptions, memory, print, println};
+use spin::Mutex;
 use x86_64::VirtAddr;
 extern crate alloc;
 
@@ -24,9 +27,24 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 
 entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 
+// fn() can't capture env, so stash the JoinHandle here before spawning task_a.
+static TASK_B_HANDLE: Mutex<Option<JoinHandle>> = Mutex::new(None);
+
+fn task_b() {
+    println!("task B: starting heavy work");
+    sleep(200);
+    println!("task B: done");
+}
+
+fn task_a() {
+    println!("task A: waiting for B to finish");
+    let handle = TASK_B_HANDLE.lock().take().expect("no handle");
+    handle.join();
+    println!("task A: B is done, continuing");
+}
+
 #[no_mangle]
 pub fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    // Set up framebuffer output before anything else.
     if let Some(fb) = boot_info.framebuffer.as_mut() {
         let info = fb.info();
         kernel::vga_buffer::init(
@@ -52,43 +70,23 @@ pub fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let logo = r"
  _______       _             _             _____ _____
 |___  / |     | |           | |           |  _  /  ___|
-   / /| | __ _| |_ _____   _| | __ _ ___  | | | \ `--.
+   / /| |/ _` | __/ _ \ \ / / |/ _` / __| | | | |`--. \
   / / | |/ _` | __/ _ \ \ / / |/ _` / __| | | | |`--. \
 ./ /__| | (_| | || (_) \ V /| | (_| \__ \ \ \_/ /\__/ /
 \_____/_|\__,_|\__\___/ \_/ |_|\__,_|___/  \___/\____/
 
 ";
 
-    // Clear bootloader's framebuffer output.
     kernel::vga_buffer::WRITER.lock().clear_screen();
 
     print!("{}", logo);
-
     print!("{}", interuptions::PROMPT);
 
+    let handle = SCHEDULER.lock().spawn_joinable(task_b);
+    *TASK_B_HANDLE.lock() = Some(handle);
+    SCHEDULER.lock().spawn(task_a);
 
-    interrupts::without_interrupts(|| {
-        scheduler::SCHEDULER.lock().spawn(|| {
-            for _ in 0..5 {
-                print!("A");
-                spin_pause(200_000);
-            }
-        });
-    });
-
-    interrupts::without_interrupts(|| {
-        scheduler::SCHEDULER.lock().spawn(|| {
-            for _ in 0..5 {
-                print!("B");
-                spin_pause(200_000);
-            }
-        });
-    });
-
-    // kick off the scheduler — releases the lock before jumping, never returns
     scheduler::run();
-
-    kernel::hlt_loop()
 }
 
 /// This function is called on panic.
