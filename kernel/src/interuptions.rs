@@ -1,4 +1,5 @@
 use crate::filesystem::simple_fs;
+use crate::task::scheduler;
 use crate::{cmd_handler, gdt, hlt_loop, print, println, vga_buffer};
 use alloc::{
     fmt, str,
@@ -183,13 +184,6 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     }
 }
 
-extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    unsafe {
-        PIC.lock()
-            .notify_end_of_interrupt(InteruptIndex::TIMER.as_u8());
-    }
-}
-
 pub fn init_idt() {
     IDT.load();
 }
@@ -202,7 +196,10 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
-    panic!("EXCEPTION: GENERAL PROTECTION FAULT\nerror_code: {:#x}\n{:#?}", error_code, stack_frame);
+    panic!(
+        "EXCEPTION: GENERAL PROTECTION FAULT\nerror_code: {:#x}\n{:#?}",
+        error_code, stack_frame
+    );
 }
 
 /// Silently acknowledge spurious PIC interrupts (IRQ7/IRQ15 cannot be masked).
@@ -216,6 +213,14 @@ extern "x86-interrupt" fn double_fault_handler(
     _error_code: u64,
 ) -> ! {
     panic!("EXCEPTION: DOUBLE FAULT\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        PIC.lock()
+            .notify_end_of_interrupt(InteruptIndex::TIMER.as_u8());
+    }
+    scheduler::preempt();
 }
 
 #[test_case]

@@ -5,13 +5,13 @@
 #![test_runner(kernel::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-pub mod serial;
-
 use core::panic::PanicInfo;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-use kernel::{interuptions, memory, print};
+use kernel::{interuptions, memory, print, spin_pause};
+use x86_64::instructions::interrupts;
+use kernel::task::scheduler;
 use x86_64::VirtAddr;
 extern crate alloc;
 
@@ -65,6 +65,28 @@ pub fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     print!("{}", logo);
 
     print!("{}", interuptions::PROMPT);
+
+
+    interrupts::without_interrupts(|| {
+        scheduler::SCHEDULER.lock().spawn(|| {
+            for _ in 0..5 {
+                print!("A");
+                spin_pause(200_000);
+            }
+        });
+    });
+
+    interrupts::without_interrupts(|| {
+        scheduler::SCHEDULER.lock().spawn(|| {
+            for _ in 0..5 {
+                print!("B");
+                spin_pause(200_000);
+            }
+        });
+    });
+
+    // kick off the scheduler — releases the lock before jumping, never returns
+    scheduler::run();
 
     kernel::hlt_loop()
 }

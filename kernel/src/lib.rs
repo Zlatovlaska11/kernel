@@ -2,6 +2,7 @@
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
 #![feature(abi_x86_interrupt)]
+#![feature(naked_functions)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
@@ -16,6 +17,7 @@ pub mod interuptions;
 pub mod memory;
 pub mod serial;
 pub mod vga_buffer;
+pub mod task;
 
 pub fn init() {
     use x86_64::instructions::port::Port;
@@ -100,5 +102,11 @@ fn panic(info: &PanicInfo) -> ! {
 pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+pub fn spin_pause(cycles: u64) {
+    for _ in 0..cycles {
+        core::hint::spin_loop();
     }
 }
