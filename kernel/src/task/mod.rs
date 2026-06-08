@@ -6,7 +6,6 @@ mod switch;
 
 use core::sync::atomic::AtomicU64;
 
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use spin::Mutex;
 
@@ -24,7 +23,6 @@ pub enum TaskState {
 
 pub struct Task {
     pub id: u64,
-    pub stack: Box<[u8; 8192]>,
     pub rsp: u64,
     pub state: TaskState,
     pub wake_time: Option<u64>,
@@ -34,13 +32,12 @@ pub struct Task {
 
 impl Task {
     pub fn new(entry: fn() -> ()) -> Self {
-        let mut stack = Box::new([0u8; 8192]);
-
-        let rsp = plant_stack(&mut *stack, entry);
+        let id = NEXT_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let stack_top = crate::memory::alloc_task_stack(id).expect("task stack alloc failed");
+        let rsp = plant_stack(stack_top.as_u64(), entry);
 
         Self {
-            id: NEXT_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed),
-            stack,
+            id,
             rsp,
             state: TaskState::Ready,
             wake_time: None,
@@ -49,18 +46,23 @@ impl Task {
     }
 }
 
+impl Drop for Task {
+    fn drop(&mut self) {
+        crate::memory::free_task_stack(self.id);
+    }
+}
+
 /// Blocks the current task — CPU goes to other tasks while waiting.
 pub fn sleep(ms: u64) {
     scheduler::do_sleep(ms);
 }
 
-fn plant_stack(stack: &mut [u8; 8192], entry: fn() -> ()) -> u64 {
-    let base = stack.as_mut_ptr() as u64;
-    let top = base + 8192;
+fn plant_stack(stack_top: u64, entry: fn() -> ()) -> u64 {
+    let top = stack_top;
 
     unsafe {
-        *((top - 8) as *mut u64) = task_exit as u64; // sentinel
-        *((top - 16) as *mut u64) = entry as u64; // entry point
+        *((top - 8) as *mut u64) = task_exit as u64;
+        *((top - 16) as *mut u64) = entry as u64;
         *((top - 24) as *mut u64) = 0; // r15
         *((top - 32) as *mut u64) = 0; // r14
         *((top - 40) as *mut u64) = 0; // r13
@@ -69,7 +71,7 @@ fn plant_stack(stack: &mut [u8; 8192], entry: fn() -> ()) -> u64 {
         *((top - 64) as *mut u64) = 0; // rbp
     }
 
-    top - 64 // rsp points at fake rbp
+    top - 64
 }
 
 fn task_exit() -> ! {

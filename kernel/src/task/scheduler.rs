@@ -100,7 +100,7 @@ impl Scheduler {
             self.blocked.push(current);
         }
 
-        self.scheadule_next();
+        self.schedule_next();
     }
 
     pub fn check_sleeping(&mut self) {
@@ -124,7 +124,7 @@ impl Scheduler {
 
     pub fn exit_current(&mut self) {
         self.current.take();
-        self.scheadule_next();
+        self.schedule_next();
     }
 
     pub fn schedule(&mut self) {
@@ -145,11 +145,11 @@ impl Scheduler {
                 context_switch(cur_rsp, &self.current.as_ref().unwrap().rsp as *const u64);
             }
         } else {
-            self.scheadule_next();
+            self.schedule_next();
         }
     }
 
-    pub fn scheadule_next(&mut self) {
+    pub fn schedule_next(&mut self) {
         let Some(next) = self.tasks.pop_front() else {
             unsafe {
                 loop {

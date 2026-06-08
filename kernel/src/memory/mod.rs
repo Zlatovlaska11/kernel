@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use bootloader_api::info::MemoryRegions;
 use spin::Mutex;
 use x86_64::structures::paging::{
@@ -12,6 +13,10 @@ use frame_allocator::BitmapFrameAllocator;
 
 /// Global frame allocator — the only way to get physical frames
 static FRAME_ALLOCATOR: Mutex<Option<BitmapFrameAllocator>> = Mutex::new(None);
+
+/// Task stacks queued for deferred unmapping. Drop runs while still on the dying
+/// task's stack, so we enqueue here and do the real unmap next time alloc_task_stack runs.
+static STACKS_TO_FREE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 
 /// Global kernel page table
 static KERNEL_MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
@@ -132,4 +137,36 @@ pub fn unmap_page(page: Page<Size4KiB>) -> Result<PhysFrame<Size4KiB>, &'static 
 /// Translate a physical address to a virtual address using the offset mapping.
 pub fn phys_to_virt(phys: PhysAddr) -> VirtAddr {
     VirtAddr::new(phys.as_u64() + unsafe { PHYS_MEM_OFFSET })
+}
+
+pub const TASK_STACK_REGION: u64 = 0xFFFF_A000_0000_0000;
+pub const TASK_SLOT_SIZE: u64 = 3 * 4096;
+
+pub fn task_stack_slot(task_id: u64) -> VirtAddr {
+    VirtAddr::new(TASK_STACK_REGION + task_id * TASK_SLOT_SIZE)
+}
+
+/// Allocates pages 1 and 2 of the slot as PRESENT | WRITABLE, leaves page 0 (the guard)
+/// unmapped. Returns the top of the stack (slot_base + TASK_SLOT_SIZE).
+pub fn alloc_task_stack(task_id: u64) -> Option<VirtAddr> {
+    // Drain stacks queued by dead tasks. Safe here: we're not on any of those stacks.
+    let ids: Vec<u64> = core::mem::take(&mut *STACKS_TO_FREE.lock());
+    for id in ids {
+        let base = task_stack_slot(id);
+        deallocate_pages(base + 4096u64, 2);
+    }
+
+    let slot_base = task_stack_slot(task_id);
+    allocate_pages(
+        slot_base + 4096u64,
+        2,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+    )?;
+    Some(slot_base + TASK_SLOT_SIZE)
+}
+
+/// Enqueues the task's stack for deferred unmapping. The actual unmap happens the next
+/// time alloc_task_stack runs, after we have switched off the dying task's stack.
+pub fn free_task_stack(task_id: u64) {
+    STACKS_TO_FREE.lock().push(task_id);
 }
